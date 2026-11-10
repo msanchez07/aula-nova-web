@@ -1,4 +1,4 @@
-name: Importar releases públicas
+name: Importar release 1.1.9
 
 on:
   push:
@@ -12,22 +12,37 @@ permissions:
 jobs:
   importar:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
-      - name: Importar últimas releases desde el repositorio anterior
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Descargar artefactos públicos de la release anterior
+        shell: bash
         run: |
           set -euo pipefail
-          repositorio_origen="msanchez07/docente-curso"
-          for tag in v1.1.9 v1.1.8 v1.1.7; do
-            echo "Importando $tag"
-            directorio="/tmp/releases/$tag"
-            mkdir -p "$directorio"
-            gh release download "$tag" --repo "$repositorio_origen" --dir "$directorio" --clobber
-            cuerpo="$(gh release view "$tag" --repo "$repositorio_origen" --json body --jq .body | sed 's#msanchez07/docente-curso#msanchez07/aula-nova-web#g')"
-            if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-              gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "Aula Nova $tag" --notes "$cuerpo" --target main
-            fi
-            gh release upload "$tag" "$directorio"/* --repo "$GITHUB_REPOSITORY" --clobber
+          mkdir -p release
+          base="https://github.com/msanchez07/docente-curso/releases/download/v1.1.9"
+          for archivo in \
+            AulaNova-mac-arm64.dmg \
+            AulaNova-mac-x64.dmg \
+            AulaNova-win-x64-setup.exe \
+            AulaNova-linux-x86_64.AppImage \
+            aula-nova_amd64.deb \
+            latest-mac.yml \
+            latest.yml \
+            latest-linux.yml; do
+            echo "Descargando $archivo"
+            curl -fL --retry 3 --retry-delay 2 "$base/$archivo" -o "release/$archivo"
           done
+
+      - name: Publicar release en el repositorio público
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.1.9
+          target_commitish: main
+          name: Aula Nova v1.1.9
+          body: |
+            Release 1.1.9 migrada al repositorio público de Aula Nova.
+
+            Incluye la corrección de la edición de sesiones desde el calendario de
+            Programación de aula.
+          files: release/*
+          fail_on_unmatched_files: true
