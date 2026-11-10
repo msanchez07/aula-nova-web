@@ -1,0 +1,33 @@
+name: Importar releases públicas
+
+on:
+  push:
+    paths:
+      - '.github/workflows/importar-releases.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  importar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Importar últimas releases desde el repositorio anterior
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repositorio_origen="msanchez07/docente-curso"
+          for tag in v1.1.9 v1.1.8 v1.1.7; do
+            echo "Importando $tag"
+            directorio="/tmp/releases/$tag"
+            mkdir -p "$directorio"
+            gh release download "$tag" --repo "$repositorio_origen" --dir "$directorio" --clobber
+            cuerpo="$(gh release view "$tag" --repo "$repositorio_origen" --json body --jq .body | sed 's#msanchez07/docente-curso#msanchez07/aula-nova-web#g')"
+            if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "Aula Nova $tag" --notes "$cuerpo" --target main
+            fi
+            gh release upload "$tag" "$directorio"/* --repo "$GITHUB_REPOSITORY" --clobber
+          done
