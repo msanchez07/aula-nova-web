@@ -28,6 +28,7 @@ jobs:
         uses: actions/configure-pages@v5
         with:
           enablement: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Subir la guía
         uses: actions/upload-pages-artifact@v3
